@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'numpad_btns.dart';
+import 'package:math_expressions/math_expressions.dart';
 
 main(){
   runApp(MyApp());
@@ -23,9 +24,7 @@ class Calculator extends StatefulWidget {
 }
 
 class _CalculatorState extends State<Calculator> {
-  String number1 = "";
-  String operand = "";
-  String number2 = "";
+  String equation = "0";
   TextEditingController displayController = TextEditingController(text: "0");
 
   @override
@@ -121,85 +120,56 @@ class _CalculatorState extends State<Calculator> {
   void onButtonPressed(String value) {
     setState(() {
       if (value == Btn.clr) {
+        equation = "0";
         displayController.text = "0";
-        number1 = "";
-        operand = "";
-        number2 = "";
       } else if (value == Btn.del) {
-        if (displayController.text.isNotEmpty) {
-          displayController.text =
-              displayController.text.substring(0, displayController.text.length - 1);
-          if (displayController.text.isEmpty) {
-            displayController.text = "0";
-          }
-        }
-      } else if ([Btn.add, Btn.subtract, Btn.multiply, Btn.divide].contains(value)) {
-        if (number1.isEmpty) {
-          number1 = displayController.text;
-          operand = value;
-          displayController.text = "";
-        }
-      } else if (value == Btn.per) {
-        if (operand.isEmpty) {
-          // Convert standalone number to percentage
-          double num = double.parse(displayController.text);
-          displayController.text = (num / 100).toString();
-        } else {
-          // Calculate percentage of number1
-          if (number1.isNotEmpty && displayController.text.isNotEmpty) {
-            double num1 = double.parse(number1);
-            double num2 = double.parse(displayController.text);
-            number2 = (num1 * (num2 / 100)).toString();
-            displayController.text = number2;
-          }
+        if (equation.isNotEmpty) {
+          equation = equation.substring(0, equation.length - 1);
+          if (equation.isEmpty) equation = "0";
+          displayController.text = equation;
         }
       } else if (value == Btn.negative) {
-        if (displayController.text != "0") {
-          if (displayController.text.startsWith("-")) {
-            displayController.text = displayController.text.substring(1);
+        if (equation.isNotEmpty && equation != "0") {
+          if (equation.startsWith("-")) {
+            equation = equation.substring(1);
           } else {
-            displayController.text = "-${displayController.text}";
+            equation = "-$equation";
           }
+          displayController.text = equation;
+        }
+      } else if (value == Btn.per) {
+        try {
+          double num = double.parse(equation);
+          equation = (num / 100).toString();
+          displayController.text = equation;
+        } catch (e) {
+          displayController.text = "Error";
         }
       } else if (value == Btn.calculate) {
-        if (number1.isNotEmpty && operand.isNotEmpty && displayController.text.isNotEmpty) {
-          number2 = displayController.text;
-          double num1 = double.parse(number1);
-          double num2 = double.parse(number2);
-          double result = 0;
-
-          switch (operand) {
-            case Btn.add:
-              result = num1 + num2;
-              break;
-            case Btn.subtract:
-              result = num1 - num2;
-              break;
-            case Btn.multiply:
-              result = num1 * num2;
-              break;
-            case Btn.divide:
-              if (num2 != 0) {
-                result = num1 / num2;
-              } else {
-                displayController.text = "Error";
-                return;
-              }
-              break;
-          }
-
-          displayController.text = result.toString();
-          number1 = "";
-          operand = "";
-          number2 = "";
-        }
+        evaluateExpression();
       } else {
-        if (displayController.text == "0") {
-          displayController.text = value;
+        if (equation == "0") {
+          equation = value;
         } else {
-          displayController.text += value;
+          equation += value;
         }
+        displayController.text = equation;
       }
     });
+  }
+
+  void evaluateExpression() {
+    try {
+      String finalExpression = equation.replaceAll(Btn.multiply, '*').replaceAll(Btn.divide, '/');
+      Parser p = Parser();
+      Expression exp = p.parse(finalExpression);
+      ContextModel cm = ContextModel();
+      double result = exp.evaluate(EvaluationType.REAL, cm);
+
+      equation = result.toString();
+      displayController.text = equation;
+    } catch (e) {
+      displayController.text = "Error";
+    }
   }
 }
